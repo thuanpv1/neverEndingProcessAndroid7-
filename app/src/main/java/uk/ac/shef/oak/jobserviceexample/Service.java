@@ -12,6 +12,14 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
+import java.net.InetAddress;
+import java.net.Socket;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -22,7 +30,9 @@ public class Service extends android.app.Service {
     private static String TAG = "Service";
     private static Service mCurrentService;
     private int counter = 0;
-
+    Socket socket;
+    final int SERVERPORT = 3000;
+    final String SERVER_IP = "localhost";
     public Service() {
         super();
     }
@@ -55,10 +65,32 @@ public class Service extends android.app.Service {
             restartForeground();
         }
 
-        startTimer();
-
+        connectWithFirebase();
+        // startTimer();
         // return start sticky so if it is killed by android, it will be restarted with Intent null
         return START_STICKY;
+    }
+
+    private void connectWithFirebase() {
+        FirebaseDatabase database = FirebaseDatabase.getInstance();
+        DatabaseReference myRef = database.getReference("locker").child("kiosk1");
+        myRef.setValue(false);
+
+        myRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                // This method is called once with the initial value and again
+                // whenever data at this location is updated.
+                boolean value = dataSnapshot.getValue(Boolean.class);
+                Log.d(TAG, "Value is: heeeee " + String.valueOf(value));
+            }
+
+            @Override
+            public void onCancelled(DatabaseError error) {
+                // Failed to read value
+                Log.w(TAG, "Failed to read value.", error.toException());
+            }
+        });
     }
 
 
@@ -84,7 +116,7 @@ public class Service extends android.app.Service {
                 Notification notification = new Notification();
                 startForeground(NOTIFICATION_ID, notification.setNotification(this, "Service notification", "This is the service's notification", R.drawable.ic_sleep));
                 Log.i(TAG, "restarting foreground successful");
-                startTimer();
+//                startTimer();
             } catch (Exception e) {
                 Log.e(TAG, "Error in notification " + e.getMessage());
             }
@@ -142,7 +174,7 @@ public class Service extends android.app.Service {
 
         Log.i(TAG, "Scheduling...");
         //schedule the timer, to wake up every 1 second
-        timer.schedule(timerTask, 1000, 1000); //
+        timer.schedule(timerTask, 1000, 10000); //
     }
 
     /**
